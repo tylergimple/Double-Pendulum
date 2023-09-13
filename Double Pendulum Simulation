@@ -1,0 +1,109 @@
+library(ggplot2)
+library(pracma)
+library(plotly)
+library(gganimate)
+library(transformr)
+
+
+startx<-0
+starty<-0
+r1<-200 #Length of arm 1
+r2<-300 #Length of arm 2
+m1<-30 #Mass of bob 1
+m2<-30 #Mass of bob 2
+g<-1 #Gravity
+angle1<- 150 #Input Angle as Degrees
+angle2<- -40 #Input Angle as Degrees
+a1<-deg2rad(-angle1) #angle of first pendulum (0 = vertical downwards, counter-clockwise is positive)
+a2<-deg2rad(-angle2) #angle of second pendulum (0 = vertical downwards, counter-clockwise is positive)
+a1_v<-0
+a2_v<-0
+seconds<-30
+
+i<-1
+z<-as.data.frame(capture.output(while (i<seconds*10){
+num1<- -g * ((2*m1)+m2)*sin(a1)
+num2<- -m2*g*(sin(a1-(2*a2)))
+num3<- -2*sin(a1-a2)*m2
+num4<- (a2_v^2*r2)+((a1_v^2)*r1*cos(a1-a2))
+denom1<- r1*(2*m1+m2-m2*cos(2*a1-2*a2))
+a1_a<-(num1+num2+num3*num4)/denom1
+
+num5<-2*sin(a1-a2)
+num6<-(a1_v^2*r1*(m1+m2))
+num7<-g*(m1+m2)*cos(a1)
+num8<-a2_v^2*r2*m2*cos(a1-a2)
+denom2<- r2*(2*m1+m2-m2*cos(2*a1-2*a2))
+a2_a<-((num5*(num6+num7+num8))/denom2)
+
+x1<-as.numeric(startx - (r1*sin(a1))) #horizontal position of first pendulum mass
+y1<-as.numeric(starty - (r1*cos(a1))) #vertical position of first pendulum mass
+x2<-as.numeric(x1 - (r2*sin(a2))) #horizontal position of second pendulum mass
+y2<-as.numeric(y1 - (r2*cos(a2))) #vertical position of second pendulum mass
+print(startx)
+print(starty)
+print(x1)
+print(y1)
+print(x2)
+print(y2)
+a1_v=a1_v+a1_a
+a2_v=a2_v+a2_a
+a1=a1+a1_v
+a2=a2+a2_v
+i=i+1
+}))
+colnames(z)<- c("vals")
+cleanz<-as.data.frame(as.numeric(substring(z$vals,4)))
+colnames(cleanz)<- c("vals")
+
+grabx<-seq(1, nrow(cleanz), by=2)
+xpoint<-as.data.frame(cleanz$vals[c(grabx)])
+colnames(xpoint) <- c("xvals")
+
+graby<-seq(2, nrow(cleanz), by=2)
+ypoint<-as.data.frame(cleanz$vals[c(graby)])
+colnames(ypoint) <- c("yvals")
+
+time<-as.data.frame(as.numeric(rep(seq(from=.1,to=((nrow(xpoint-1)))/30,by=.1),each=3)))
+colnames(time) <- c("Time")
+
+type<-as.data.frame(c("Origin","Top Bob","Bottom Bob"))
+colnames(type) <- c("Type")
+
+
+graph<-cbind(xpoint,ypoint,time,type)
+
+
+fig <- graph %>%
+  plot_ly(
+    x = ~xvals, 
+    y = ~yvals, 
+    marker=list(size=15),
+    frame = ~Time, 
+    type = 'scatter',
+    mode = 'markers') %>% add_trace(mode = 'lines+markers')%>%layout(xaxis = list(range=c(-(r1+r2),(r1+r2))))%>%layout(yaxis = list(range=c(-(r1+r2),(r1+r2))))%>%animation_opts(frame = 1)
+fig
+
+
+ggplot(graph, aes(x=xvals, y=yvals,color=Type)) + 
+  geom_point(size=1) +
+  xlim(-(r1+r2),r1+r2) +
+  ylim(-(r1+r2),r1+r2)
+
+
+p<-ggplot(graph, aes(x=xvals, y=yvals,color=Type,group=1)) + 
+  geom_point(size=10) +
+  xlim(-(r1+r2),r1+r2) +
+  ylim(-(r1+r2),r1+r2) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        plot.background = element_rect(fill='transparent', color=NA))+
+        transition_time(Time) +
+  shadow_mark(size = 1,color="pink")
+
+animate(p,fps = 10, nframes = 300, end_pause=50, bg = 'transparent')
+
